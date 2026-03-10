@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FacePulse Analytics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}" />
+</head>
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+
+  <header class="topbar">
+    <div>
+      <h1>FacePulse Analytics</h1>
+      <p>Usage, latency, and emotion trends from local logs</p>
+    </div>
+    <nav>
+      <a href="/">Live</a>
+      <a href="/analytics">Analytics</a>
+    </nav>
+  </header>
+
+  <main class="layout single">
+    <section class="stats-card reveal">
+      <h2>Aggregate Snapshot</h2>
+      <div class="metric-grid">
+        <article>
+          <h3 id="samples">0</h3>
+          <p>Samples</p>
+        </article>
+        <article>
+          <h3 id="avgLatency">0 ms</h3>
+          <p>Avg Latency</p>
+        </article>
+        <article>
+          <h3 id="peakFaces">0</h3>
+          <p>Peak Faces</p>
+        </article>
+      </div>
+      <h3>Top Emotions</h3>
+      <ul id="emotionList" class="emotion-list"></ul>
+      <button id="refreshBtn">Refresh Analytics</button>
+    </section>
+  </main>
+
+  <script>
+    async function refreshAnalytics() {
+      const res = await fetch('/api/analytics');
+      const data = await res.json();
+      document.getElementById('samples').textContent = data.samples;
+      document.getElementById('avgLatency').textContent = data.avg_latency_ms + ' ms';
+      document.getElementById('peakFaces').textContent = data.peak_faces;
+
+      const list = document.getElementById('emotionList');
+      list.innerHTML = '';
+      if (!data.top_emotions.length) {
+        const li = document.createElement('li');
+        li.textContent = 'No emotion samples yet';
+        list.appendChild(li);
+        return;
+      }
+
+      data.top_emotions.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = item.emotion + ': ' + item.count;
+        list.appendChild(li);
+      });
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', refreshAnalytics);
+    refreshAnalytics();
+  </script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FacePulse Live</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}" />
+</head>
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+
+  <header class="topbar">
+    <div>
+      <h1>FacePulse Live</h1>
+      <p>Real-time browser face analytics dashboard</p>
+    </div>
+    <nav>
+      <a href="/">Live</a>
+      <a href="/analytics">Analytics</a>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <section class="camera-card reveal">
+      <div class="camera-wrap">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="overlay"></canvas>
+      </div>
+      <div class="actions">
+        <button id="startBtn">Start Camera</button>
+        <button id="stopBtn">Stop Camera</button>
+      </div>
+      <p id="statusText">Status: idle</p>
+    </section>
+
+    <section class="stats-card reveal delay">
+      <h2>Live Metrics</h2>
+      <div class="metric-grid">
+        <article>
+          <h3 id="faceCount">0</h3>
+          <p>Faces</p>
+        </article>
+        <article>
+          <h3 id="latency">0 ms</h3>
+          <p>Latency</p>
+        </article>
+        <article>
+          <h3 id="emotion">N/A</h3>
+          <p>Top Emotion</p>
+        </article>
+      </div>
+      <label for="intervalRange">Request Interval</label>
+      <input id="intervalRange" type="range" min="600" max="3000" step="100" value="1200" />
+      <p class="hint">Higher interval = lower CPU load</p>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
