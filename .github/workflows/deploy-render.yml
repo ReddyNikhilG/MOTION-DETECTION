@@ -7,12 +7,15 @@ on:
 
 jobs:
   render-deploy:
+    if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Render deploy hook
-        run: |
-          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
-            echo "Missing RENDER_DEPLOY_HOOK_URL secret";
-            exit 1;
-          fi
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+        run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
+  render-deploy-skipped:
+    if: ${{ secrets.RENDER_DEPLOY_HOOK_URL == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Render secret missing
+        run: echo "Skipping deploy. Add RENDER_DEPLOY_HOOK_URL repository secret to enable Render deployments."
