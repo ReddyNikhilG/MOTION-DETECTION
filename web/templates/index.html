@@ -16,8 +16,10 @@
       <p>Real-time browser face analytics dashboard</p>
     </div>
     <nav>
+      <span class="user-pill">{{ username }}</span>
       <a href="/">Live</a>
       <a href="/analytics">Analytics</a>
+      <a href="/logout">Logout</a>
     </nav>
   </header>
 
@@ -52,10 +54,14 @@
       </div>
       <label for="intervalRange">Request Interval</label>
       <input id="intervalRange" type="range" min="600" max="3000" step="100" value="1200" />
+      <div class="settings-row">
+        <button id="saveSettingsBtn" type="button">Save Workspace Settings</button>
+      </div>
       <p class="hint">Higher interval = lower CPU load</p>
     </section>
   </main>
 
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

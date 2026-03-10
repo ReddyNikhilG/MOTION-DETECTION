@@ -7,10 +7,12 @@ const topEmotion = document.getElementById('emotion');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const intervalRange = document.getElementById('intervalRange');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 
 const snapshot = document.createElement('canvas');
 const sctx = snapshot.getContext('2d');
 const octx = overlay.getContext('2d');
+const socket = io();
 
 let stream = null;
 let timer = null;
@@ -23,10 +25,10 @@ function resizeOverlay() {
 
 function drawFaces(faces) {
   octx.clearRect(0, 0, overlay.width, overlay.height);
-  octx.strokeStyle = '#3bff8f';
+  octx.strokeStyle = '#4eb1ff';
   octx.lineWidth = 2;
   octx.font = '16px Segoe UI';
-  octx.fillStyle = '#3bff8f';
+  octx.fillStyle = '#4eb1ff';
 
   faces.forEach((f) => {
     const b = f.box;
@@ -52,32 +54,29 @@ async function captureAndAnalyze() {
     sctx.drawImage(video, 0, 0, snapshot.width, snapshot.height);
     const image = snapshot.toDataURL('image/jpeg', 0.82);
 
-    const res = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      statusText.textContent = 'Status: ' + (data.error || 'analyze error');
-      return;
-    }
-
-    statusText.textContent = 'Status: running';
-    faceCount.textContent = String(data.face_count);
-    latency.textContent = data.latency_ms + ' ms';
-
-    const emotions = data.faces.map((f) => f.emotion).filter((e) => e && e !== 'N/A');
-    topEmotion.textContent = emotions[0] || 'N/A';
-
-    drawFaces(data.faces);
+    socket.emit('analyze_frame', { image });
   } catch (err) {
     statusText.textContent = 'Status: request failed';
   } finally {
     busy = false;
   }
 }
+
+socket.on('analyze_result', (data) => {
+  if (data.error) {
+    statusText.textContent = 'Status: ' + data.error;
+    return;
+  }
+
+  statusText.textContent = 'Status: running';
+  faceCount.textContent = String(data.face_count);
+  latency.textContent = data.latency_ms + ' ms';
+
+  const emotions = data.faces.map((f) => f.emotion).filter((e) => e && e !== 'N/A');
+  topEmotion.textContent = emotions[0] || 'N/A';
+
+  drawFaces(data.faces);
+});
 
 async function startCamera() {
   if (stream) return;
@@ -117,6 +116,43 @@ intervalRange.addEventListener('input', () => {
   }
 });
 
+async function loadWorkspaceSettings() {
+  try {
+    const res = await fetch('/api/workspace');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.intervalMs) {
+      intervalRange.value = String(data.intervalMs);
+    }
+  } catch (err) {
+    statusText.textContent = 'Status: failed to load settings';
+  }
+}
+
+async function saveWorkspaceSettings() {
+  try {
+    const payload = {
+      intervalMs: Number(intervalRange.value),
+    };
+    const res = await fetch('/api/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      statusText.textContent = 'Status: save failed';
+      return;
+    }
+    statusText.textContent = 'Status: workspace saved';
+  } catch (err) {
+    statusText.textContent = 'Status: save failed';
+  }
+}
+
 window.addEventListener('resize', resizeOverlay);
 startBtn.addEventListener('click', startCamera);
 stopBtn.addEventListener('click', stopCamera);
+if (saveSettingsBtn) {
+  saveSettingsBtn.addEventListener('click', saveWorkspaceSettings);
+}
+loadWorkspaceSettings();

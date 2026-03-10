@@ -4,6 +4,15 @@ Real-time webcam face analytics app built with PyQt5, OpenCV, and DeepFace.
 
 Now includes a full website called FacePulse Live with browser webcam capture, API-based analysis, and analytics dashboard.
 
+It now also includes:
+
+- User authentication (register/login/logout)
+- Per-user workspace settings persistence
+- Real-time WebSocket analysis stream
+- Database-backed analytics storage
+- Monitoring endpoint for request and latency counters
+- CI/CD workflows for testing and deploy hooks
+
 ## Features
 
 - Multi-face detection with green bounding boxes
@@ -60,9 +69,13 @@ Generated in `logs/`:
 
 - Live page: `/`
 - Analytics page: `/analytics`
+- Login page: `/login`
+- Register page: `/register`
 - Health endpoint: `/api/health`
 - Analyze endpoint: `/api/analyze` (POST with base64 image)
 - Aggregate analytics endpoint: `/api/analytics`
+- Workspace endpoint: `/api/workspace`
+- Monitoring endpoint: `/api/metrics`
 
 ## Tests
 
@@ -90,3 +103,10 @@ run_web.bat
 
 - TensorFlow CUDA warnings can be ignored on non-NVIDIA systems.
 - First run may take longer due to model weight downloads.
+
+## Environment Variables
+
+- `SECRET_KEY`: Flask session secret (set in production)
+- `DATABASE_URL`: database DSN. Default is local SQLite file `webapp.db`
+- `PORT`: web port (default 5000)
+- `FLASK_DEBUG`: set `1` to enable debug mode

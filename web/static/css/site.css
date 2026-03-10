@@ -1,12 +1,12 @@
 :root {
-  --ink: #dff7f8;
-  --muted: #8eb4b4;
-  --bg0: #061318;
-  --bg1: #0a2026;
-  --card: rgba(11, 31, 38, 0.78);
-  --line: rgba(109, 196, 196, 0.28);
-  --accent: #3bff8f;
-  --accent2: #33c4ff;
+  --ink: #d9e9ff;
+  --muted: #8fa8cc;
+  --bg0: #01040a;
+  --bg1: #041327;
+  --card: rgba(8, 20, 40, 0.8);
+  --line: rgba(90, 145, 255, 0.28);
+  --accent: #5aa2ff;
+  --accent2: #47d0ff;
 }
 
 * {
@@ -17,8 +17,8 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
-  background: radial-gradient(1200px 600px at 10% -10%, #14343e, transparent),
-              radial-gradient(900px 500px at 90% 10%, #12343f, transparent),
+  background: radial-gradient(1200px 600px at 10% -10%, #0b2042, transparent),
+              radial-gradient(900px 500px at 90% 10%, #0a2f5a, transparent),
               linear-gradient(160deg, var(--bg0), var(--bg1));
   font-family: "Segoe UI", "Trebuchet MS", sans-serif;
   overflow-x: hidden;
@@ -36,14 +36,14 @@ body {
 .orb-a {
   top: 6%;
   left: -5%;
-  background: #1ca9d6;
+  background: #2a7bff;
   animation: floatA 6s ease-in-out infinite;
 }
 
 .orb-b {
   right: -4%;
   bottom: 8%;
-  background: #5dd66f;
+  background: #3ab4ff;
   animation: floatB 8s ease-in-out infinite;
 }
 
@@ -83,6 +83,16 @@ body {
   padding: 8px 12px;
   border-radius: 10px;
   margin-left: 8px;
+}
+
+.user-pill {
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 14px;
 }
 
 .layout {
@@ -138,7 +148,7 @@ button {
   padding: 10px 14px;
   cursor: pointer;
   background: linear-gradient(120deg, var(--accent2), var(--accent));
-  color: #051013;
+  color: #031025;
   font-weight: 700;
 }
 
@@ -163,6 +173,32 @@ button {
 .hint {
   color: var(--muted);
   margin-bottom: 0;
+}
+
+.settings-row {
+  margin-top: 12px;
+}
+
+.auth-card {
+  max-width: 520px;
+  margin: 24px auto;
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-form input {
+  border: 1px solid var(--line);
+  background: rgba(4, 15, 32, 0.65);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.error-msg {
+  color: #ff9ea6;
 }
 
 .emotion-list {

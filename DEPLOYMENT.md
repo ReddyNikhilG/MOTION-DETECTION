@@ -2,6 +2,8 @@
 
 This project now supports browser deployment with Flask + Gunicorn.
 
+It includes authentication, websocket live analysis, and database-backed analytics.
+
 ## Option 1: Run Locally In Browser
 
 1. Install dependencies:
@@ -29,6 +31,10 @@ C:/Users/reddy/AppData/Local/Programs/Python/Python310/python.exe web/app.py
 - Environment: Docker
 - Branch: main (or your branch)
 - Region: nearest to you
+- Add environment variables:
+	- `SECRET_KEY=<strong-random-secret>`
+	- `DATABASE_URL=<your-postgres-url>` (optional; if omitted, SQLite is used)
+	- `PORT=5000`
 5. Deploy.
 
 Render will build from the Dockerfile and start Gunicorn automatically.
@@ -46,6 +52,17 @@ Render will build from the Dockerfile and start Gunicorn automatically.
 - Browser camera access requires HTTPS on public deployments.
 - TensorFlow may run on CPU if CUDA is unavailable.
 - First requests can be slower while models warm up.
+
+## CI/CD
+
+- CI workflow: `.github/workflows/ci.yml`
+- Render deploy workflow: `.github/workflows/deploy-render.yml`
+
+To enable auto deploy hook from GitHub Actions:
+
+1. Create deploy hook URL in Render service settings.
+2. Add repository secret `RENDER_DEPLOY_HOOK_URL` in GitHub.
+3. Push to `main` or manually trigger workflow.
 
 ## Production Command (Non-Docker)
 
