@@ -1,9 +1,10 @@
 import json
 import os
 import sys
+import threading
 import time
-from collections import Counter
-from datetime import datetime
+from collections import Counter, defaultdict, deque
+from datetime import datetime, timedelta
 
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_login import LoginManager, current_user, login_required, login_user, logout_user
@@ -40,6 +41,11 @@ metrics = {
     "latency_total": 0,
 }
 
+RATE_LIMIT_WINDOW_SEC = 3
+RATE_LIMIT_MAX_ANALYZE = 6
+_analyze_hits = defaultdict(deque)
+_analyze_hits_lock = threading.Lock()
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -66,6 +72,24 @@ def _save_detection_event(user_id, payload):
     )
     db.session.add(row)
     db.session.commit()
+
+
+def _consume_analyze_slot(user_id):
+    now = time.time()
+    window_start = now - RATE_LIMIT_WINDOW_SEC
+
+    with _analyze_hits_lock:
+        q = _analyze_hits[user_id]
+        while q and q[0] < window_start:
+            q.popleft()
+
+        if len(q) >= RATE_LIMIT_MAX_ANALYZE:
+            retry_after_ms = max(50, int((q[0] + RATE_LIMIT_WINDOW_SEC - now) * 1000))
+            return False, retry_after_ms
+
+        q.append(now)
+
+    return True, 0
 
 
 @app.get("/")
@@ -150,6 +174,10 @@ def metrics_api():
 @app.post("/api/analyze")
 @login_required
 def analyze():
+    allowed, retry_after_ms = _consume_analyze_slot(current_user.id)
+    if not allowed:
+        return jsonify({"error": "Rate limit exceeded", "retry_after_ms": retry_after_ms}), 429
+
     body = request.get_json(silent=True) or {}
     image_data = body.get("image")
     if not image_data:
@@ -196,9 +224,41 @@ def set_workspace():
 @app.get("/api/analytics")
 @login_required
 def analytics_api():
-    rows = DetectionEvent.query.filter_by(user_id=current_user.id).order_by(DetectionEvent.id.desc()).limit(1500).all()
+    range_key = (request.args.get("range") or "all").strip().lower()
+    start_date_raw = (request.args.get("start") or "").strip()
+    end_date_raw = (request.args.get("end") or "").strip()
+
+    now = datetime.utcnow()
+    query = DetectionEvent.query.filter_by(user_id=current_user.id)
+
+    if range_key == "today":
+        start = datetime(now.year, now.month, now.day)
+        query = query.filter(DetectionEvent.created_at >= start)
+    elif range_key == "week":
+        query = query.filter(DetectionEvent.created_at >= now - timedelta(days=7))
+    elif range_key == "custom":
+        try:
+            if start_date_raw:
+                start = datetime.fromisoformat(start_date_raw)
+                query = query.filter(DetectionEvent.created_at >= start)
+            if end_date_raw:
+                end = datetime.fromisoformat(end_date_raw) + timedelta(days=1)
+                query = query.filter(DetectionEvent.created_at < end)
+        except ValueError:
+            return jsonify({"error": "Invalid start/end date format (expected YYYY-MM-DD)"}), 400
+
+    rows = query.order_by(DetectionEvent.id.desc()).limit(1500).all()
     if not rows:
-        return jsonify({"samples": 0, "avg_latency_ms": 0, "peak_faces": 0, "top_emotions": []})
+        return jsonify(
+            {
+                "samples": 0,
+                "avg_latency_ms": 0,
+                "peak_faces": 0,
+                "top_emotions": [],
+                "trend": [],
+                "applied_range": range_key,
+            }
+        )
 
     emotions = []
     total_latency = 0
@@ -213,12 +273,23 @@ def analytics_api():
                 emotions.append(emotion)
 
     top = Counter(emotions).most_common(6)
+    trend_rows = list(reversed(rows[:180]))
+    trend = [
+        {
+            "timestamp": row.created_at.isoformat(),
+            "latency_ms": row.latency_ms,
+            "face_count": row.face_count,
+        }
+        for row in trend_rows
+    ]
     return jsonify(
         {
             "samples": len(rows),
             "avg_latency_ms": int(total_latency / len(rows)),
             "peak_faces": peak_faces,
             "top_emotions": [{"emotion": k, "count": v} for k, v in top],
+            "trend": trend,
+            "applied_range": range_key,
         }
     )
 
@@ -233,6 +304,11 @@ def socket_connect():
 def analyze_frame_ws(payload):
     if not current_user.is_authenticated:
         emit("analyze_result", {"error": "Authentication required"})
+        return
+
+    allowed, retry_after_ms = _consume_analyze_slot(current_user.id)
+    if not allowed:
+        emit("analyze_result", {"error": "Rate limit exceeded", "retry_after_ms": retry_after_ms})
         return
 
     image_data = (payload or {}).get("image")
@@ -261,4 +337,10 @@ if __name__ == "__main__":
 
     port = int(os.getenv("PORT", "5000"))
     debug = os.getenv("FLASK_DEBUG", "0") == "1"
-    socketio.run(app, host="0.0.0.0", port=port, debug=debug)
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=port,
+        debug=debug,
+        allow_unsafe_werkzeug=True,
+    )

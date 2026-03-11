@@ -33,6 +33,19 @@
         <button id="startBtn">Start Camera</button>
         <button id="stopBtn">Stop Camera</button>
       </div>
+      <div class="settings-row camera-controls">
+        <label for="cameraMode">Camera Mode</label>
+        <select id="cameraMode">
+          <option value="auto">Auto</option>
+          <option value="user">Front</option>
+          <option value="environment">Back</option>
+        </select>
+        <label for="cameraDevice">Device</label>
+        <select id="cameraDevice">
+          <option value="">Auto Device</option>
+        </select>
+        <button id="refreshDevicesBtn" type="button">Refresh Cameras</button>
+      </div>
       <p id="statusText">Status: idle</p>
     </section>
 
@@ -50,6 +63,18 @@
         <article>
           <h3 id="emotion">N/A</h3>
           <p>Top Emotion</p>
+        </article>
+        <article>
+          <h3 id="confidenceValue">N/A</h3>
+          <p>Top Confidence</p>
+        </article>
+        <article>
+          <h3 id="qualityBadge">N/A</h3>
+          <p>Quality</p>
+        </article>
+        <article>
+          <h3 id="cadenceText">-</h3>
+          <p>Adaptive Cadence</p>
         </article>
       </div>
       <label for="intervalRange">Request Interval</label>

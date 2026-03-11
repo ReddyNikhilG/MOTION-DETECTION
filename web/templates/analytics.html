@@ -26,6 +26,19 @@
   <main class="layout single">
     <section class="stats-card reveal">
       <h2>Aggregate Snapshot</h2>
+      <div class="settings-row">
+        <label for="rangeSelect">Time Range</label>
+        <select id="rangeSelect">
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="week">Last 7 Days</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="settings-row" id="customRangeRow" style="display:none; gap:8px; align-items:center;">
+        <input type="date" id="startDate" />
+        <input type="date" id="endDate" />
+      </div>
       <div class="metric-grid">
         <article>
           <h3 id="samples">0</h3>
@@ -42,17 +55,101 @@
       </div>
       <h3>Top Emotions</h3>
       <ul id="emotionList" class="emotion-list"></ul>
+      <h3>Recent Trend</h3>
+      <div class="chart-wrap">
+        <canvas id="trendChart" height="120"></canvas>
+      </div>
       <button id="refreshBtn">Refresh Analytics</button>
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script>
+    let trendChart = null;
+
+    function ensureChart() {
+      if (trendChart) return trendChart;
+      const ctx = document.getElementById('trendChart').getContext('2d');
+      trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Latency (ms)',
+              data: [],
+              borderColor: '#47d0ff',
+              backgroundColor: 'rgba(71, 208, 255, 0.2)',
+              tension: 0.28,
+              yAxisID: 'yLatency',
+            },
+            {
+              label: 'Faces',
+              data: [],
+              borderColor: '#5aa2ff',
+              backgroundColor: 'rgba(90, 162, 255, 0.2)',
+              tension: 0.28,
+              yAxisID: 'yFaces',
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            yLatency: { type: 'linear', position: 'left' },
+            yFaces: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } },
+          },
+          plugins: {
+            legend: { labels: { color: '#d9e9ff' } },
+          },
+        },
+      });
+      return trendChart;
+    }
+
+    function updateTrend(data) {
+      const chart = ensureChart();
+      const trend = Array.isArray(data.trend) ? data.trend : [];
+      chart.data.labels = trend.map((p) => {
+        const d = new Date(p.timestamp);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      });
+      chart.data.datasets[0].data = trend.map((p) => p.latency_ms || 0);
+      chart.data.datasets[1].data = trend.map((p) => p.face_count || 0);
+      chart.update();
+    }
+
     async function refreshAnalytics() {
-      const res = await fetch('/api/analytics');
+      const range = document.getElementById('rangeSelect').value;
+      const start = document.getElementById('startDate').value;
+      const end = document.getElementById('endDate').value;
+
+      const params = new URLSearchParams();
+      params.set('range', range);
+      if (range === 'custom') {
+        if (start) params.set('start', start);
+        if (end) params.set('end', end);
+      }
+
+      const res = await fetch('/api/analytics?' + params.toString());
+      if (!res.ok) {
+        document.getElementById('samples').textContent = '0';
+        document.getElementById('avgLatency').textContent = '0 ms';
+        document.getElementById('peakFaces').textContent = '0';
+        const list = document.getElementById('emotionList');
+        list.innerHTML = '';
+        const li = document.createElement('li');
+        li.textContent = 'Unable to load analytics for selected range';
+        list.appendChild(li);
+        return;
+      }
+
       const data = await res.json();
       document.getElementById('samples').textContent = data.samples;
       document.getElementById('avgLatency').textContent = data.avg_latency_ms + ' ms';
       document.getElementById('peakFaces').textContent = data.peak_faces;
+      updateTrend(data);
 
       const list = document.getElementById('emotionList');
       list.innerHTML = '';
@@ -70,7 +167,20 @@
       });
     }
 
+    function updateRangeInputs() {
+      const range = document.getElementById('rangeSelect').value;
+      const row = document.getElementById('customRangeRow');
+      row.style.display = range === 'custom' ? 'flex' : 'none';
+    }
+
+    document.getElementById('rangeSelect').addEventListener('change', () => {
+      updateRangeInputs();
+      refreshAnalytics();
+    });
+    document.getElementById('startDate').addEventListener('change', refreshAnalytics);
+    document.getElementById('endDate').addEventListener('change', refreshAnalytics);
     document.getElementById('refreshBtn').addEventListener('click', refreshAnalytics);
+    updateRangeInputs();
     refreshAnalytics();
   </script>
 </body>
