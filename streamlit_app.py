@@ -123,7 +123,7 @@ def detect_pose(frame, pose_detector):
 def detect_faces(frame, min_face_size=60):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = FACE_CASCADE.detectMultiScale(
-        gray, scaleFactor=1.1, minNeighbors=5, minSize=(int(min_face_size), int(min_face_size))
+        gray, scaleFactor=1.15, minNeighbors=7, minSize=(int(min_face_size), int(min_face_size))
     )
     return [tuple(map(int, box)) for box in faces] if faces is not None and len(faces) else []
 
@@ -157,11 +157,14 @@ def analyze_frame(frame, detector, pose_detector, min_confidence=0, min_face_siz
         motion_list = motions
     elif items:
         if pose_detector is None:
-            motion_list = ["Person detected (pose unavailable)"]
+            motion_list = ["Face detected (pose unavailable)"]
         else:
             motion_list = ["Person detected"]
     else:
-        motion_list = ["No person detected"]
+        if pose_detector is None:
+            motion_list = ["No face detected (pose unavailable)"]
+        else:
+            motion_list = ["No person detected"]
 
     latency_ms = int((time.time() - started) * 1000)
     payload = {
