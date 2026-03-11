@@ -28,6 +28,7 @@ FACE_CASCADE = (
     if cv2 is not None
     else None
 )
+MP_POSE_AVAILABLE = bool(getattr(mp, "solutions", None) and getattr(mp.solutions, "pose", None))
 
 
 @st.cache_resource
@@ -37,6 +38,8 @@ def get_detector():
 
 @st.cache_resource
 def get_pose_detector():
+    if not MP_POSE_AVAILABLE:
+        return None
     return mp.solutions.pose.Pose(
         static_image_mode=True,
         model_complexity=1,
@@ -105,6 +108,9 @@ def classify_motion(landmarks, h, w):
 
 def detect_pose(frame, pose_detector):
     """Run MediaPipe Pose on the frame and return detected motions."""
+    if pose_detector is None or cv2 is None or not MP_POSE_AVAILABLE:
+        return None, None
+
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = pose_detector.process(rgb)
     if not results.pose_landmarks:
@@ -290,6 +296,9 @@ if st.sidebar.button("🗑️ Clear Detection Logs"):
 
 detector = get_detector()
 pose_detector = get_pose_detector()
+
+if not MP_POSE_AVAILABLE:
+    st.warning("MediaPipe pose module is not available in this environment. Motion labels will be disabled.")
 
 
 def _render_result(frame, result):
