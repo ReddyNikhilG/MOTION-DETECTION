@@ -1,7 +1,13 @@
-from deepface import DeepFace
+try:
+    from deepface import DeepFace
+except Exception:
+    DeepFace = None
 
 
 class AIDetector:
+
+    def __init__(self):
+        self.enabled = DeepFace is not None
 
     @staticmethod
     def _normalize_result(result):
@@ -15,6 +21,13 @@ class AIDetector:
         return None
 
     def analyze(self, face_frame):
+
+        if not self.enabled:
+            return {
+                "age": "N/A",
+                "dominant_emotion": "N/A",
+                "confidence": None,
+            }
 
         try:
 
