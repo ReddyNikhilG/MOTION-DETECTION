@@ -120,17 +120,17 @@ def detect_pose(frame, pose_detector):
     return motions, results.pose_landmarks
 
 
-def detect_faces(frame):
+def detect_faces(frame, min_face_size=60):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = FACE_CASCADE.detectMultiScale(
-        gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60)
+        gray, scaleFactor=1.1, minNeighbors=5, minSize=(int(min_face_size), int(min_face_size))
     )
     return [tuple(map(int, box)) for box in faces] if faces is not None and len(faces) else []
 
 
-def analyze_frame(frame, detector, pose_detector, min_confidence=0):
+def analyze_frame(frame, detector, pose_detector, min_confidence=0, min_face_size=60):
     started = time.time()
-    faces = detect_faces(frame)
+    faces = detect_faces(frame, min_face_size=min_face_size)
     items = []
 
     for x, y, w, h in faces:
@@ -153,7 +153,15 @@ def analyze_frame(frame, detector, pose_detector, min_confidence=0):
 
     # Detect body motion / pose
     motions, pose_lm = detect_pose(frame, pose_detector)
-    motion_list = motions if motions else ["No person detected"]
+    if motions:
+        motion_list = motions
+    elif items:
+        if pose_detector is None:
+            motion_list = ["Person detected (pose unavailable)"]
+        else:
+            motion_list = ["Person detected"]
+    else:
+        motion_list = ["No person detected"]
 
     latency_ms = int((time.time() - started) * 1000)
     payload = {
@@ -357,7 +365,7 @@ if mode == "📷 Camera Capture":
             st.error("Could not decode the camera image. Please try again.")
         else:
             with st.spinner("🔍 Analyzing faces and motion..."):
-                result = analyze_frame(frame, detector, pose_detector, min_confidence)
+                result = analyze_frame(frame, detector, pose_detector, min_confidence, min_face_size)
             _render_result(frame, result)
 
 # ── Upload Image ─────────────────────────────────────────────
@@ -383,7 +391,7 @@ elif mode == "🖼️ Upload Image":
                 st.markdown(f"---\n### Image {idx + 1}: {uploaded.name}")
 
             with st.spinner(f"🔍 Analyzing {uploaded.name}..."):
-                result = analyze_frame(frame, detector, pose_detector, min_confidence)
+                result = analyze_frame(frame, detector, pose_detector, min_confidence, min_face_size)
             _render_result(frame, result)
 
 # ── Video Analysis ───────────────────────────────────────────
@@ -423,7 +431,7 @@ elif mode == "🎬 Video Analysis":
                 if not ret:
                     continue
 
-                result = analyze_frame(frame, detector, pose_detector, min_confidence)
+                result = analyze_frame(frame, detector, pose_detector, min_confidence, min_face_size)
                 result["frame_no"] = frame_no
                 result["time_sec"] = round(frame_no / fps, 2)
                 video_results.append((frame, result))
