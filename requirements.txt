@@ -1,6 +1,8 @@
-opencv-python-headless
-deepface
-tensorflow-cpu
-numpy<2
-mediapipe
+opencv-python-headless==4.9.0.80
+numpy==1.26.4
 streamlit
+mediapipe==0.10.11
+deepface==0.0.92
+tf-keras==2.15.1
+tensorflow-cpu==2.15.1
+protobuf>=3.20,<5
