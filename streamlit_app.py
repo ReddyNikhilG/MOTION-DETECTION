@@ -168,8 +168,6 @@ def draw_detections(frame, faces, motions):
         x, y, w, h = b["x"], b["y"], b["w"], b["h"]
         cv2.rectangle(annotated, (x, y), (x + w, y + h), (0, 255, 0), 2)
         label = face["emotion"]
-        if face.get("age") and face["age"] != "N/A":
-            label = f"Age {face['age']} | {label}"
         if face["confidence"] is not None:
             label += f" ({face['confidence']:.0f}%)"
         cv2.putText(
@@ -310,20 +308,14 @@ def _render_result(frame, result):
         if result["faces"]:
             st.markdown('<div class="section-header"><b>😊 Face Details</b></div>', unsafe_allow_html=True)
             for i, face in enumerate(result["faces"], 1):
-                age_str = face.get("age", "N/A")
                 conf = f"{face['confidence']:.1f}%" if face.get('confidence') else "N/A"
                 st.markdown(f"""
                 <div class="face-card">
                     <b>Face {i}</b><br>
                     🎭 Emotion: <b>{face['emotion']}</b><br>
-                    📊 Confidence: <b>{conf}</b><br>
-                    🎂 Age: <b>{age_str}</b>
+                    📊 Confidence: <b>{conf}</b>
                 </div>
                 """, unsafe_allow_html=True)
-
-    # Export result as JSON
-    with st.expander("📋 Raw JSON Result"):
-        st.json(result)
 
 
 # ── Camera Capture ───────────────────────────────────────────
