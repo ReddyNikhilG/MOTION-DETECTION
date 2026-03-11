@@ -6,7 +6,12 @@ import tempfile
 from datetime import datetime, timedelta
 from collections import Counter
 
-import cv2
+try:
+    import cv2
+    CV2_IMPORT_ERROR = None
+except Exception as exc:
+    cv2 = None
+    CV2_IMPORT_ERROR = str(exc)
 import numpy as np
 import pandas as pd
 import mediapipe as mp
@@ -18,8 +23,10 @@ LOGS_DIR = os.path.join(os.path.dirname(__file__), "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
 LOG_PATH = os.path.join(LOGS_DIR, "streamlit_detections.jsonl")
 
-FACE_CASCADE = cv2.CascadeClassifier(
-    cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+FACE_CASCADE = (
+    cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    if cv2 is not None
+    else None
 )
 
 
@@ -251,6 +258,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🎯 FacePulse Live — Face & Motion Detection")
+
+if cv2 is None:
+    st.error(
+        "OpenCV could not be loaded in this deployment. "
+        f"Underlying error: {CV2_IMPORT_ERROR}"
+    )
+    st.info("The server is missing native OpenCV runtime libraries. Please redeploy after updating system packages.")
+    st.stop()
 
 # ── Sidebar settings ─────────────────────────────────────────
 st.sidebar.header("⚙️ Settings")
