@@ -28,6 +28,11 @@ FACE_CASCADE = (
     if cv2 is not None
     else None
 )
+EYE_CASCADE = (
+    cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
+    if cv2 is not None
+    else None
+)
 MP_POSE_AVAILABLE = bool(getattr(mp, "solutions", None) and getattr(mp.solutions, "pose", None))
 
 
@@ -125,7 +130,36 @@ def detect_faces(frame, min_face_size=60):
     faces = FACE_CASCADE.detectMultiScale(
         gray, scaleFactor=1.15, minNeighbors=7, minSize=(int(min_face_size), int(min_face_size))
     )
-    return [tuple(map(int, box)) for box in faces] if faces is not None and len(faces) else []
+    if faces is None or not len(faces):
+        return []
+
+    frame_area = gray.shape[0] * gray.shape[1]
+    validated_faces = []
+
+    for x, y, w, h in faces:
+        box_area = w * h
+        if box_area < max(int(frame_area * 0.015), int(min_face_size) * int(min_face_size)):
+            continue
+
+        aspect_ratio = w / float(h)
+        if aspect_ratio < 0.65 or aspect_ratio > 1.45:
+            continue
+
+        if EYE_CASCADE is not None:
+            face_roi = gray[y:y + h, x:x + w]
+            upper_face = face_roi[: max(1, h // 2), :]
+            eyes = EYE_CASCADE.detectMultiScale(
+                upper_face,
+                scaleFactor=1.1,
+                minNeighbors=4,
+                minSize=(max(8, w // 10), max(8, h // 10)),
+            )
+            if eyes is None or len(eyes) < 1:
+                continue
+
+        validated_faces.append((int(x), int(y), int(w), int(h)))
+
+    return validated_faces
 
 
 def analyze_frame(frame, detector, pose_detector, min_confidence=0, min_face_size=60):
