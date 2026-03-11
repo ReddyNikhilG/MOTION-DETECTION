@@ -14,6 +14,12 @@ const cameraDevice = document.getElementById('cameraDevice');
 const refreshDevicesBtn = document.getElementById('refreshDevicesBtn');
 const intervalRange = document.getElementById('intervalRange');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+const screenshotBtn = document.getElementById('screenshotBtn');
+const analyzeSpinner = document.getElementById('analyzeSpinner');
+const connectionStatus = document.getElementById('connectionStatus');
+const faceDetailsPanel = document.getElementById('faceDetailsPanel');
+const faceDetailsList = document.getElementById('faceDetailsList');
+const toastContainer = document.getElementById('toastContainer');
 
 const snapshot = document.createElement('canvas');
 const sctx = snapshot.getContext('2d');
@@ -29,6 +35,36 @@ let lastResultTs = 0;
 
 const MIN_INTERVAL = Number(intervalRange.min || 600);
 const MAX_INTERVAL = Number(intervalRange.max || 3000);
+
+// ── Toast notifications ────────────────────────────────────
+function showToast(message, type = 'info', duration = 3000) {
+  if (!toastContainer) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.textContent = message;
+  toastContainer.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('toast-visible'));
+  setTimeout(() => {
+    toast.classList.remove('toast-visible');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// ── Connection status indicator ────────────────────────────
+socket.on('connect', () => {
+  if (connectionStatus) {
+    connectionStatus.className = 'conn-badge conn-connected';
+    connectionStatus.innerHTML = '&#x25CF; Online';
+  }
+});
+
+socket.on('disconnect', () => {
+  if (connectionStatus) {
+    connectionStatus.className = 'conn-badge conn-disconnected';
+    connectionStatus.innerHTML = '&#x25CF; Offline';
+  }
+  showToast('Connection lost — retrying...', 'error');
+});
 
 function getVideoConstraints() {
   const selectedDevice = cameraDevice ? cameraDevice.value : '';
@@ -109,6 +145,7 @@ async function captureAndAnalyze() {
   }
 
   busy = true;
+  if (analyzeSpinner) analyzeSpinner.style.display = 'flex';
   try {
     snapshot.width = video.videoWidth;
     snapshot.height = video.videoHeight;
@@ -118,6 +155,7 @@ async function captureAndAnalyze() {
     socket.emit('analyze_frame', { image, requested_interval_ms: currentIntervalMs });
   } catch (err) {
     statusText.textContent = 'Status: request failed';
+    showToast('Frame capture failed', 'error');
   } finally {
     busy = false;
   }
@@ -176,7 +214,31 @@ function applyAdaptiveInterval(latencyMs) {
   updateCadenceText();
 }
 
+function updateFaceDetails(faces) {
+  if (!faceDetailsPanel || !faceDetailsList) return;
+  if (!faces || !faces.length) {
+    faceDetailsPanel.style.display = 'none';
+    return;
+  }
+  faceDetailsPanel.style.display = 'block';
+  faceDetailsList.innerHTML = '';
+  faces.forEach((f, i) => {
+    const card = document.createElement('div');
+    card.className = 'face-detail-card';
+    const age = f.age !== undefined && f.age !== 'N/A' ? f.age : '?';
+    const conf = typeof f.confidence === 'number' ? Math.round(f.confidence) + '%' : 'N/A';
+    card.innerHTML =
+      '<strong>Face ' + (i + 1) + '</strong>' +
+      '<span class="fd-row">Age: <b>' + age + '</b></span>' +
+      '<span class="fd-row">Emotion: <b>' + (f.emotion || 'N/A') + '</b></span>' +
+      '<span class="fd-row">Confidence: <b>' + conf + '</b></span>';
+    faceDetailsList.appendChild(card);
+  });
+}
+
 socket.on('analyze_result', (data) => {
+  if (analyzeSpinner) analyzeSpinner.style.display = 'none';
+
   if (data.error) {
     statusText.textContent = 'Status: ' + data.error;
     if (lastResult && Date.now() - lastResultTs < 1200) {
@@ -203,6 +265,7 @@ socket.on('analyze_result', (data) => {
   lastResultTs = Date.now();
 
   drawFaces(data.faces);
+  updateFaceDetails(data.faces);
 });
 
 async function startCamera() {
@@ -213,6 +276,7 @@ async function startCamera() {
     await video.play();
     resizeOverlay();
     statusText.textContent = 'Status: camera started';
+    showToast('Camera started', 'success');
 
     await refreshCameraDevices();
 
@@ -221,6 +285,7 @@ async function startCamera() {
     scheduleNextCapture();
   } catch (err) {
     statusText.textContent = 'Status: camera permission denied or unavailable';
+    showToast('Camera access denied', 'error');
   }
 }
 
@@ -242,6 +307,9 @@ function stopCamera() {
   qualityBadge.textContent = 'N/A';
   cadenceText.textContent = '-';
   statusText.textContent = 'Status: stopped';
+  if (faceDetailsPanel) faceDetailsPanel.style.display = 'none';
+  if (analyzeSpinner) analyzeSpinner.style.display = 'none';
+  showToast('Camera stopped', 'info');
 }
 
 async function restartCameraIfRunning() {
@@ -294,12 +362,35 @@ async function saveWorkspaceSettings() {
     });
     if (!res.ok) {
       statusText.textContent = 'Status: save failed';
+      showToast('Failed to save settings', 'error');
       return;
     }
     statusText.textContent = 'Status: workspace saved';
+    showToast('Settings saved', 'success');
   } catch (err) {
     statusText.textContent = 'Status: save failed';
+    showToast('Failed to save settings', 'error');
   }
+}
+
+function takeScreenshot() {
+  if (!stream) {
+    showToast('Start the camera first', 'error');
+    return;
+  }
+  const c = document.createElement('canvas');
+  c.width = video.videoWidth;
+  c.height = video.videoHeight;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(video, 0, 0);
+  // Also draw the overlay (face boxes)
+  ctx.drawImage(overlay, 0, 0);
+
+  const link = document.createElement('a');
+  link.download = 'facepulse_' + new Date().toISOString().replace(/[:.]/g, '-') + '.png';
+  link.href = c.toDataURL('image/png');
+  link.click();
+  showToast('Screenshot saved', 'success');
 }
 
 window.addEventListener('resize', resizeOverlay);
@@ -316,6 +407,9 @@ if (refreshDevicesBtn) {
 }
 if (saveSettingsBtn) {
   saveSettingsBtn.addEventListener('click', saveWorkspaceSettings);
+}
+if (screenshotBtn) {
+  screenshotBtn.addEventListener('click', takeScreenshot);
 }
 updateCadenceText();
 refreshCameraDevices();

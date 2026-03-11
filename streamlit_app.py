@@ -1,11 +1,14 @@
 import os
+import io
 import json
 import time
+import tempfile
 from datetime import datetime, timedelta
 from collections import Counter
 
 import cv2
 import numpy as np
+import pandas as pd
 import mediapipe as mp
 import streamlit as st
 
@@ -112,7 +115,7 @@ def detect_faces(frame):
     return [tuple(map(int, box)) for box in faces] if faces is not None and len(faces) else []
 
 
-def analyze_frame(frame, detector, pose_detector):
+def analyze_frame(frame, detector, pose_detector, min_confidence=0):
     started = time.time()
     faces = detect_faces(frame)
     items = []
@@ -121,12 +124,18 @@ def analyze_frame(frame, detector, pose_detector):
         crop = frame[y : y + h, x : x + w]
         prediction = detector.analyze(crop) if crop.size else None
         if not prediction:
-            prediction = {"dominant_emotion": "N/A", "confidence": None}
+            prediction = {"dominant_emotion": "N/A", "confidence": None, "age": "N/A"}
+
+        conf = prediction.get("confidence")
+        # Filter by minimum confidence threshold
+        if min_confidence > 0 and conf is not None and conf < min_confidence:
+            continue
 
         items.append({
             "box": {"x": x, "y": y, "w": w, "h": h},
             "emotion": prediction.get("dominant_emotion", "N/A"),
-            "confidence": prediction.get("confidence"),
+            "confidence": conf,
+            "age": prediction.get("age", "N/A"),
         })
 
     # Detect body motion / pose
@@ -159,6 +168,8 @@ def draw_detections(frame, faces, motions):
         x, y, w, h = b["x"], b["y"], b["w"], b["h"]
         cv2.rectangle(annotated, (x, y), (x + w, y + h), (0, 255, 0), 2)
         label = face["emotion"]
+        if face.get("age") and face["age"] != "N/A":
+            label = f"Age {face['age']} | {label}"
         if face["confidence"] is not None:
             label += f" ({face['confidence']:.0f}%)"
         cv2.putText(
@@ -192,16 +203,132 @@ def load_logs():
 # ── Streamlit UI ─────────────────────────────────────────────
 
 st.set_page_config(page_title="FacePulse Live", page_icon="🎯", layout="wide")
+
+# Custom CSS for better styling
+st.markdown("""
+<style>
+    .stApp { }
+    div[data-testid="stMetric"] {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border: 1px solid rgba(90, 162, 255, 0.3);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    div[data-testid="stMetric"] label { color: #8fa8cc !important; font-size: 14px !important; }
+    div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+        color: #47d0ff !important; font-size: 28px !important;
+    }
+    .face-card {
+        background: linear-gradient(135deg, #0b1929 0%, #132744 100%);
+        border: 1px solid rgba(90, 162, 255, 0.25);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 8px;
+    }
+    .motion-badge {
+        display: inline-block;
+        background: linear-gradient(120deg, #5aa2ff, #47d0ff);
+        color: #031025;
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 14px;
+        margin: 3px 4px;
+    }
+    .section-header {
+        background: linear-gradient(90deg, rgba(90,162,255,0.15), transparent);
+        border-left: 3px solid #5aa2ff;
+        padding: 8px 16px;
+        border-radius: 0 8px 8px 0;
+        margin: 16px 0 12px;
+    }
+    .success-box {
+        background: linear-gradient(135deg, #0a2a1a 0%, #0d3320 100%);
+        border: 1px solid rgba(50, 205, 50, 0.3);
+        border-radius: 10px;
+        padding: 12px 16px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("🎯 FacePulse Live — Face & Motion Detection")
 
-mode = st.sidebar.radio("Mode", ["📷 Camera Capture", "🖼️ Upload Image", "📊 Analytics"])
+# ── Sidebar settings ─────────────────────────────────────────
+st.sidebar.header("⚙️ Settings")
+mode = st.sidebar.radio("Mode", ["📷 Camera Capture", "🖼️ Upload Image", "🎬 Video Analysis", "📊 Analytics"])
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("Detection Settings")
+min_confidence = st.sidebar.slider(
+    "Min Confidence (%)", 0, 100, 0, 5,
+    help="Filter out detections below this confidence threshold"
+)
+min_face_size = st.sidebar.slider(
+    "Min Face Size (px)", 30, 200, 60, 10,
+    help="Minimum pixel size for face detection"
+)
+
+st.sidebar.markdown("---")
+if st.sidebar.button("🗑️ Clear Detection Logs"):
+    if os.path.exists(LOG_PATH):
+        os.remove(LOG_PATH)
+    st.sidebar.success("Logs cleared!")
 
 detector = get_detector()
 pose_detector = get_pose_detector()
 
+
+def _render_result(frame, result):
+    """Shared result renderer for camera/upload/video modes."""
+    annotated = draw_detections(frame, result["faces"], result["motions"])
+    annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        st.image(annotated_rgb, caption="Detection Results", use_container_width=True)
+
+        # Download annotated image
+        success, buf = cv2.imencode(".png", annotated)
+        if success:
+            st.download_button(
+                "⬇️ Download Annotated Image",
+                data=buf.tobytes(),
+                file_name=f"facepulse_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                mime="image/png",
+            )
+
+    with c2:
+        st.metric("Faces Detected", result["face_count"])
+        st.metric("Latency", f"{result['latency_ms']} ms")
+        st.metric("Timestamp", datetime.now().strftime("%H:%M:%S"))
+
+        st.markdown('<div class="section-header"><b>🏃 Detected Motions</b></div>', unsafe_allow_html=True)
+        motion_html = "".join(f'<span class="motion-badge">{m}</span>' for m in result["motions"])
+        st.markdown(motion_html, unsafe_allow_html=True)
+
+        if result["faces"]:
+            st.markdown('<div class="section-header"><b>😊 Face Details</b></div>', unsafe_allow_html=True)
+            for i, face in enumerate(result["faces"], 1):
+                age_str = face.get("age", "N/A")
+                conf = f"{face['confidence']:.1f}%" if face.get('confidence') else "N/A"
+                st.markdown(f"""
+                <div class="face-card">
+                    <b>Face {i}</b><br>
+                    🎭 Emotion: <b>{face['emotion']}</b><br>
+                    📊 Confidence: <b>{conf}</b><br>
+                    🎂 Age: <b>{age_str}</b>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # Export result as JSON
+    with st.expander("📋 Raw JSON Result"):
+        st.json(result)
+
+
 # ── Camera Capture ───────────────────────────────────────────
 if mode == "📷 Camera Capture":
-    st.subheader("Capture from Webcam")
+    st.markdown('<div class="section-header"><b>📷 Capture from Webcam</b></div>', unsafe_allow_html=True)
     st.info("Click the camera button to take a photo, then it will be analyzed automatically.")
 
     img_data = st.camera_input("Take a photo")
@@ -210,75 +337,145 @@ if mode == "📷 Camera Capture":
         file_bytes = np.frombuffer(img_data.getvalue(), dtype=np.uint8)
         frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
-        with st.spinner("Analyzing..."):
-            result = analyze_frame(frame, detector, pose_detector)
-
-        annotated = draw_detections(frame, result["faces"], result["motions"])
-        annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-        st.image(annotated_rgb, caption="Detection Results", width="stretch")
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Faces Detected", result["face_count"])
-        col2.metric("Latency", f"{result['latency_ms']} ms")
-        col3.metric("Timestamp", datetime.now().strftime("%H:%M:%S"))
-
-        st.subheader("Detected Motions")
-        for motion in result["motions"]:
-            st.write(f"- **{motion}**")
-
-        if result["faces"]:
-            st.subheader("Face Details")
-            for i, face in enumerate(result["faces"], 1):
-                with st.expander(f"Face {i}"):
-                    fc1, fc2 = st.columns(2)
-                    fc1.write(f"**Emotion:** {face['emotion']}")
-                    conf = f"{face['confidence']:.1f}%" if face['confidence'] else "N/A"
-                    fc2.write(f"**Confidence:** {conf}")
+        if frame is None:
+            st.error("Could not decode the camera image. Please try again.")
+        else:
+            with st.spinner("🔍 Analyzing faces and motion..."):
+                result = analyze_frame(frame, detector, pose_detector, min_confidence)
+            _render_result(frame, result)
 
 # ── Upload Image ─────────────────────────────────────────────
 elif mode == "🖼️ Upload Image":
-    st.subheader("Upload an Image for Analysis")
-    uploaded = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png", "bmp", "webp"])
+    st.markdown('<div class="section-header"><b>🖼️ Upload an Image for Analysis</b></div>', unsafe_allow_html=True)
 
-    if uploaded is not None:
-        file_bytes = np.frombuffer(uploaded.read(), dtype=np.uint8)
-        frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    uploaded_files = st.file_uploader(
+        "Choose one or more images",
+        type=["jpg", "jpeg", "png", "bmp", "webp"],
+        accept_multiple_files=True,
+    )
 
-        if frame is None:
-            st.error("Could not decode the image. Please try a different file.")
+    if uploaded_files:
+        for idx, uploaded in enumerate(uploaded_files):
+            file_bytes = np.frombuffer(uploaded.read(), dtype=np.uint8)
+            frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
+            if frame is None:
+                st.error(f"Could not decode **{uploaded.name}**. Skipping.")
+                continue
+
+            if len(uploaded_files) > 1:
+                st.markdown(f"---\n### Image {idx + 1}: {uploaded.name}")
+
+            with st.spinner(f"🔍 Analyzing {uploaded.name}..."):
+                result = analyze_frame(frame, detector, pose_detector, min_confidence)
+            _render_result(frame, result)
+
+# ── Video Analysis ───────────────────────────────────────────
+elif mode == "🎬 Video Analysis":
+    st.markdown('<div class="section-header"><b>🎬 Upload a Video for Analysis</b></div>', unsafe_allow_html=True)
+    st.info("Upload a video file to analyze faces and motion in sampled frames.")
+
+    video_file = st.file_uploader("Choose a video", type=["mp4", "avi", "mov", "mkv", "webm"])
+
+    frame_interval = st.slider("Analyze every N-th frame", 5, 60, 15, 5,
+                                help="Lower = more detail but slower processing")
+
+    if video_file is not None:
+        # Write to temp file for OpenCV
+        tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        tfile.write(video_file.read())
+        tfile.flush()
+        tfile_path = tfile.name
+        tfile.close()
+
+        cap = cv2.VideoCapture(tfile_path)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30
+
+        if total_frames <= 0:
+            st.error("Could not read the video file.")
         else:
-            with st.spinner("Analyzing..."):
-                result = analyze_frame(frame, detector, pose_detector)
+            frames_to_analyze = list(range(0, total_frames, frame_interval))
+            st.write(f"**{total_frames}** total frames at **{fps:.0f}** FPS — analyzing **{len(frames_to_analyze)}** sampled frames")
 
-            annotated = draw_detections(frame, result["faces"], result["motions"])
-            annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+            progress = st.progress(0, text="Analyzing video...")
+            video_results = []
 
-            c1, c2 = st.columns([2, 1])
-            with c1:
-                st.image(annotated_rgb, caption="Detection Results", width="stretch")
-            with c2:
-                st.metric("Faces Detected", result["face_count"])
-                st.metric("Latency", f"{result['latency_ms']} ms")
+            for i, frame_no in enumerate(frames_to_analyze):
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
+                ret, frame = cap.read()
+                if not ret:
+                    continue
 
-                st.markdown("---\n**Motions**")
-                for motion in result["motions"]:
-                    st.write(f"- {motion}")
+                result = analyze_frame(frame, detector, pose_detector, min_confidence)
+                result["frame_no"] = frame_no
+                result["time_sec"] = round(frame_no / fps, 2)
+                video_results.append((frame, result))
 
-                if result["faces"]:
-                    for i, face in enumerate(result["faces"], 1):
-                        st.markdown(f"---\n**Face {i}**")
-                        st.write(f"Emotion: {face['emotion']}")
-                        conf = f"{face['confidence']:.1f}%" if face['confidence'] else "N/A"
-                        st.write(f"Confidence: {conf}")
+                progress.progress((i + 1) / len(frames_to_analyze),
+                                  text=f"Analyzing frame {frame_no}/{total_frames}...")
+
+            cap.release()
+            try:
+                os.unlink(tfile_path)
+            except OSError:
+                pass
+
+            progress.empty()
+
+            if not video_results:
+                st.warning("No frames could be analyzed from this video.")
+            else:
+                # Summary metrics
+                st.markdown('<div class="section-header"><b>📊 Video Summary</b></div>', unsafe_allow_html=True)
+
+                all_face_counts = [r["face_count"] for _, r in video_results]
+                all_latencies = [r["latency_ms"] for _, r in video_results]
+                all_emotions = []
+                for _, r in video_results:
+                    for face in r["faces"]:
+                        emo = face.get("emotion")
+                        if emo and emo != "N/A":
+                            all_emotions.append(emo)
+
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("Frames Analyzed", len(video_results))
+                m2.metric("Max Faces", max(all_face_counts) if all_face_counts else 0)
+                m3.metric("Avg Latency", f"{sum(all_latencies)/len(all_latencies):.0f} ms" if all_latencies else "N/A")
+                m4.metric("Top Emotion", Counter(all_emotions).most_common(1)[0][0] if all_emotions else "N/A")
+
+                # Face count over time chart
+                if video_results:
+                    chart_df = pd.DataFrame([
+                        {"Time (s)": r["time_sec"], "Faces": r["face_count"], "Latency (ms)": r["latency_ms"]}
+                        for _, r in video_results
+                    ])
+                    st.subheader("Faces Over Time")
+                    st.line_chart(chart_df.set_index("Time (s)")["Faces"])
+                    st.subheader("Latency Over Time")
+                    st.line_chart(chart_df.set_index("Time (s)")["Latency (ms)"])
+
+                # Emotion distribution
+                if all_emotions:
+                    st.subheader("Emotion Distribution")
+                    emo_counts = Counter(all_emotions)
+                    st.bar_chart(emo_counts)
+
+                # Browse individual frames
+                st.markdown('<div class="section-header"><b>🔎 Browse Frames</b></div>', unsafe_allow_html=True)
+                frame_idx = st.slider("Select frame", 0, len(video_results) - 1, 0)
+                selected_frame, selected_result = video_results[frame_idx]
+                st.caption(f"Frame {selected_result['frame_no']} — {selected_result['time_sec']}s")
+                _render_result(selected_frame, selected_result)
 
 # ── Analytics ────────────────────────────────────────────────
 elif mode == "📊 Analytics":
-    st.subheader("Detection Analytics")
+    st.markdown('<div class="section-header"><b>📊 Detection Analytics</b></div>', unsafe_allow_html=True)
 
     records = load_logs()
 
     if not records:
-        st.info("No detection data yet. Analyze some images first!")
+        st.info("No detection data yet. Analyze some images or videos first!")
     else:
         # Time filter
         filter_opt = st.sidebar.selectbox("Time Range", ["All", "Today", "Last 7 Days", "Last 30 Days"])
@@ -309,49 +506,87 @@ elif mode == "📊 Analytics":
             sum(r.get("latency_ms", 0) for r in filtered) / len(filtered)
             if filtered else 0
         )
+        max_faces = max((r.get("face_count", 0) for r in filtered), default=0)
 
-        m1, m2, m3 = st.columns(3)
+        m1, m2, m3, m4 = st.columns(4)
         m1.metric("Total Analyses", len(filtered))
-        m2.metric("Total Faces Detected", total_faces)
-        m3.metric("Avg Latency", f"{avg_latency:.0f} ms")
+        m2.metric("Total Faces", total_faces)
+        m3.metric("Peak Faces", max_faces)
+        m4.metric("Avg Latency", f"{avg_latency:.0f} ms")
 
-        # Emotion distribution
+        # Emotion and motion data
         emotions = []
+        all_motions = []
         for r in filtered:
             for face in r.get("faces", []):
                 emo = face.get("emotion")
                 if emo and emo != "N/A":
                     emotions.append(emo)
-
-        if emotions:
-            st.subheader("Emotion Distribution")
-            counts = Counter(emotions)
-            st.bar_chart(counts)
-
-        # Motion distribution
-        all_motions = []
-        for r in filtered:
             for m in r.get("motions", []):
                 if m and m != "No person detected":
                     all_motions.append(m)
 
-        if all_motions:
-            st.subheader("Motion Distribution")
-            motion_counts = Counter(all_motions)
-            st.bar_chart(motion_counts)
+        # Two-column charts
+        col_a, col_b = st.columns(2)
+
+        with col_a:
+            if emotions:
+                st.subheader("Emotion Distribution")
+                counts = Counter(emotions)
+                st.bar_chart(counts)
+            else:
+                st.info("No emotion data in this range")
+
+        with col_b:
+            if all_motions:
+                st.subheader("Motion Distribution")
+                motion_counts = Counter(all_motions)
+                st.bar_chart(motion_counts)
+            else:
+                st.info("No motion data in this range")
 
         # Detections over time
         if filtered:
             st.subheader("Detections Over Time")
-            import pandas as pd
             time_data = []
+            latency_data = []
             for r in filtered:
                 try:
                     ts = datetime.fromisoformat(r["timestamp"])
                     time_data.append({"date": ts.date(), "faces": r.get("face_count", 0)})
+                    latency_data.append({"date": ts.date(), "latency": r.get("latency_ms", 0)})
                 except (ValueError, KeyError):
                     continue
+
             if time_data:
-                tdf = pd.DataFrame(time_data)
-                daily = tdf.groupby("date")["faces"].sum()
-                st.line_chart(daily)
+                tc1, tc2 = st.columns(2)
+                with tc1:
+                    tdf = pd.DataFrame(time_data)
+                    daily = tdf.groupby("date")["faces"].sum()
+                    st.caption("Daily Face Count")
+                    st.line_chart(daily)
+                with tc2:
+                    ldf = pd.DataFrame(latency_data)
+                    daily_lat = ldf.groupby("date")["latency"].mean()
+                    st.caption("Daily Avg Latency (ms)")
+                    st.line_chart(daily_lat)
+
+        # Export analytics data
+        st.markdown("---")
+        export_col1, export_col2 = st.columns(2)
+        with export_col1:
+            csv_data = pd.DataFrame(filtered).to_csv(index=False)
+            st.download_button(
+                "⬇️ Export as CSV",
+                data=csv_data,
+                file_name=f"facepulse_analytics_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+            )
+        with export_col2:
+            json_data = json.dumps(filtered, indent=2)
+            st.download_button(
+                "⬇️ Export as JSON",
+                data=json_data,
+                file_name=f"facepulse_analytics_{datetime.now().strftime('%Y%m%d')}.json",
+                mime="application/json",
+            )

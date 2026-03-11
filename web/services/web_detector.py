@@ -79,4 +79,4 @@ class WebFaceAnalyzer:
 
     def _write_log(self, payload):
         with open(self.log_path, "a", encoding="utf-8") as fp:
-            fp.write(json.dumps(payload) + "\\n")
+            fp.write(json.dumps(payload) + "\n")

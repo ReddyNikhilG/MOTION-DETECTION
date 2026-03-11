@@ -10,6 +10,9 @@
   <div class="bg-orb orb-a"></div>
   <div class="bg-orb orb-b"></div>
 
+  <!-- Toast container -->
+  <div id="toastContainer" class="toast-container"></div>
+
   <header class="topbar">
     <div>
       <h1>FacePulse Live</h1>
@@ -17,6 +20,7 @@
     </div>
     <nav>
       <span class="user-pill">{{ username }}</span>
+      <span id="connectionStatus" class="conn-badge conn-disconnected" title="WebSocket status">&#x25CF; Offline</span>
       <a href="/">Live</a>
       <a href="/analytics">Analytics</a>
       <a href="/logout">Logout</a>
@@ -28,10 +32,16 @@
       <div class="camera-wrap">
         <video id="video" autoplay playsinline></video>
         <canvas id="overlay"></canvas>
+        <!-- Loading spinner overlay -->
+        <div id="analyzeSpinner" class="spinner-overlay" style="display:none;">
+          <div class="spinner"></div>
+          <span>Analyzing...</span>
+        </div>
       </div>
       <div class="actions">
-        <button id="startBtn">Start Camera</button>
-        <button id="stopBtn">Stop Camera</button>
+        <button id="startBtn">&#9654; Start Camera</button>
+        <button id="stopBtn" class="btn-secondary">&#9632; Stop Camera</button>
+        <button id="screenshotBtn" class="btn-secondary" title="Save current frame">&#128247; Screenshot</button>
       </div>
       <div class="settings-row camera-controls">
         <label for="cameraMode">Camera Mode</label>
@@ -44,9 +54,9 @@
         <select id="cameraDevice">
           <option value="">Auto Device</option>
         </select>
-        <button id="refreshDevicesBtn" type="button">Refresh Cameras</button>
+        <button id="refreshDevicesBtn" type="button" class="btn-sm">&#128260; Refresh</button>
       </div>
-      <p id="statusText">Status: idle</p>
+      <p id="statusText" class="status-text">Status: idle</p>
     </section>
 
     <section class="stats-card reveal delay">
@@ -77,10 +87,17 @@
           <p>Adaptive Cadence</p>
         </article>
       </div>
+
+      <!-- Face Details Panel -->
+      <div id="faceDetailsPanel" class="face-details-panel" style="display:none;">
+        <h3>Detected Faces</h3>
+        <div id="faceDetailsList"></div>
+      </div>
+
       <label for="intervalRange">Request Interval</label>
       <input id="intervalRange" type="range" min="600" max="3000" step="100" value="1200" />
       <div class="settings-row">
-        <button id="saveSettingsBtn" type="button">Save Workspace Settings</button>
+        <button id="saveSettingsBtn" type="button">&#128190; Save Settings</button>
       </div>
       <p class="hint">Higher interval = lower CPU load</p>
     </section>

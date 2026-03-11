@@ -258,6 +258,158 @@ button {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Toast notifications ─────────────────────────── */
+.toast-container {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.toast-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.toast-info {
+  background: rgba(90, 162, 255, 0.85);
+}
+
+.toast-success {
+  background: rgba(50, 205, 100, 0.85);
+}
+
+.toast-error {
+  background: rgba(255, 80, 80, 0.85);
+}
+
+/* ── Connection badge ────────────────────────────── */
+.conn-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.conn-connected {
+  color: #2eff8e;
+  border: 1px solid rgba(46, 255, 142, 0.4);
+  background: rgba(46, 255, 142, 0.1);
+}
+
+.conn-disconnected {
+  color: #ff6b6b;
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  background: rgba(255, 107, 107, 0.1);
+}
+
+/* ── Spinner overlay ─────────────────────────────── */
+.spinner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(1, 4, 10, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  gap: 10px;
+  color: var(--accent2);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(71, 208, 255, 0.2);
+  border-top-color: var(--accent2);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Face detail cards ───────────────────────────── */
+.face-details-panel {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.face-details-panel h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  color: var(--accent2);
+}
+
+.face-detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: rgba(4, 15, 32, 0.6);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.face-detail-card strong {
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+.fd-row b {
+  color: var(--accent2);
+}
+
+/* ── Button variants ─────────────────────────────── */
+.btn-secondary {
+  background: rgba(90, 162, 255, 0.15);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.btn-secondary:hover {
+  background: rgba(90, 162, 255, 0.3);
+}
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+/* ── Status text ─────────────────────────────────── */
+.status-text {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
