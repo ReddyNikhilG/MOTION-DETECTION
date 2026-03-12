@@ -1,3 +1,10 @@
 streamlit
 opencv-python-headless
 mediapipe
+deepface
+tensorflow==2.20.0
+tf-keras==2.20.1
+Flask
+Flask-Login
+Flask-SQLAlchemy
+Flask-SocketIO

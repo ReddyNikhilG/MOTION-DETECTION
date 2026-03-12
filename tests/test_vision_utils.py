@@ -41,15 +41,14 @@ class TrackerTests(unittest.TestCase):
 
 
 class SmootherTests(unittest.TestCase):
-    def test_smoother_averages_age_and_votes_emotion(self):
+    def test_smoother_votes_emotion_and_averages_confidence(self):
         smoother = PredictionSmoother(window_size=3)
-        out1 = smoother.update(1, {"age": 20, "dominant_emotion": "happy", "confidence": 80})
-        out2 = smoother.update(1, {"age": 22, "dominant_emotion": "happy", "confidence": 82})
-        out3 = smoother.update(1, {"age": 24, "dominant_emotion": "neutral", "confidence": 84})
+        out1 = smoother.update(1, {"dominant_emotion": "happy", "confidence": 80})
+        out2 = smoother.update(1, {"dominant_emotion": "happy", "confidence": 82})
+        out3 = smoother.update(1, {"dominant_emotion": "neutral", "confidence": 84})
 
         self.assertIsNotNone(out1)
         self.assertEqual(out2["dominant_emotion"], "happy")
-        self.assertEqual(out3["age"], 22)
         self.assertGreaterEqual(out3["confidence"], 80)
 
 

@@ -171,7 +171,7 @@ def analyze_frame(frame, detector, pose_detector, min_confidence=0, min_face_siz
         crop = frame[y : y + h, x : x + w]
         prediction = detector.analyze(crop) if crop.size else None
         if not prediction:
-            prediction = {"dominant_emotion": "N/A", "confidence": None, "age": "N/A"}
+            prediction = {"dominant_emotion": "N/A", "confidence": None}
 
         conf = prediction.get("confidence")
         # Filter by minimum confidence threshold
@@ -182,7 +182,6 @@ def analyze_frame(frame, detector, pose_detector, min_confidence=0, min_face_siz
             "box": {"x": x, "y": y, "w": w, "h": h},
             "emotion": prediction.get("dominant_emotion", "N/A"),
             "confidence": conf,
-            "age": prediction.get("age", "N/A"),
         })
 
     # Detect body motion / pose

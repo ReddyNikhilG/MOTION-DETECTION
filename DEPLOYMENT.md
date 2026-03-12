@@ -1,10 +1,49 @@
-# Browser Deployment Guide
+# Streamlit Deployment Guide
 
-This project now supports browser deployment with Flask + Gunicorn.
+This project supports direct deployment of the Streamlit app in `streamlit_app.py`.
 
-It includes authentication, websocket live analysis, and database-backed analytics.
+Use this path if you want the simplest hosted version with camera capture, image upload, video analysis, analytics, and real-time motion labels.
 
-## Option 1: Run Locally In Browser
+## Option 1: Run Locally With Streamlit
+
+1. Install dependencies:
+
+```powershell
+C:/Users/reddy/AppData/Local/Programs/Python/Python310/python.exe -m pip install -r requirements.txt
+```
+
+2. Start the Streamlit app:
+
+```powershell
+streamlit run streamlit_app.py
+```
+
+3. Open the local URL printed in the terminal, usually:
+
+- http://127.0.0.1:8501
+
+## Option 2: Deploy To Streamlit Community Cloud
+
+1. Push this project to GitHub.
+2. Open Streamlit Community Cloud.
+3. Create a new app from your repository.
+4. Use these settings:
+- Branch: `main` (or your deployment branch)
+- Main file path: `streamlit_app.py`
+- Python version: `3.11`
+5. Deploy.
+
+Streamlit Community Cloud will install dependencies from `requirements.txt` and native Linux packages from `packages.txt`.
+
+## Streamlit Files Used By Deployment
+
+- App entrypoint: `streamlit_app.py`
+- Python version: `runtime.txt`
+- Python dependencies: `requirements.txt`
+- Linux system packages: `packages.txt`
+- Streamlit config: `.streamlit/config.toml`
+
+## Option 3: Run Flask App Locally In Browser
 
 1. Install dependencies:
 
@@ -22,7 +61,7 @@ C:/Users/reddy/AppData/Local/Programs/Python/Python310/python.exe web/app.py
 
 - http://127.0.0.1:5000
 
-## Option 2: Deploy To Render (Recommended)
+## Option 4: Deploy Flask App To Render
 
 1. Push this project to GitHub.
 2. In Render: New + -> Web Service.
@@ -39,7 +78,7 @@ C:/Users/reddy/AppData/Local/Programs/Python/Python310/python.exe web/app.py
 
 Render will build from the Dockerfile and start Gunicorn automatically.
 
-## Option 3: Deploy To Railway
+## Option 5: Deploy Flask App To Railway
 
 1. Push this project to GitHub.
 2. In Railway: New Project -> Deploy from GitHub repo.
@@ -48,6 +87,7 @@ Render will build from the Dockerfile and start Gunicorn automatically.
 
 ## Notes
 
+- Streamlit is the recommended deployment target for this repository if you do not need login, websocket streaming, or the separate Flask UI.
 - This app uses webcam capture in browser via `getUserMedia`.
 - Browser camera access requires HTTPS on public deployments.
 - TensorFlow may run on CPU if CUDA is unavailable.

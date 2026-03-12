@@ -4,6 +4,7 @@ const statusText = document.getElementById('statusText');
 const faceCount = document.getElementById('faceCount');
 const latency = document.getElementById('latency');
 const topEmotion = document.getElementById('emotion');
+const motionLabel = document.getElementById('motionLabel');
 const confidenceValue = document.getElementById('confidenceValue');
 const qualityBadge = document.getElementById('qualityBadge');
 const cadenceText = document.getElementById('cadenceText');
@@ -130,7 +131,7 @@ function drawFaces(faces) {
   faces.forEach((f) => {
     const b = f.box;
     octx.strokeRect(b.x, b.y, b.w, b.h);
-    let label = `Age ${f.age} | ${f.emotion}`;
+    let label = `${f.emotion || 'N/A'}`;
     if (typeof f.confidence === 'number') {
       label += ` (${Math.round(f.confidence)}%)`;
     }
@@ -225,11 +226,9 @@ function updateFaceDetails(faces) {
   faces.forEach((f, i) => {
     const card = document.createElement('div');
     card.className = 'face-detail-card';
-    const age = f.age !== undefined && f.age !== 'N/A' ? f.age : '?';
     const conf = typeof f.confidence === 'number' ? Math.round(f.confidence) + '%' : 'N/A';
     card.innerHTML =
       '<strong>Face ' + (i + 1) + '</strong>' +
-      '<span class="fd-row">Age: <b>' + age + '</b></span>' +
       '<span class="fd-row">Emotion: <b>' + (f.emotion || 'N/A') + '</b></span>' +
       '<span class="fd-row">Confidence: <b>' + conf + '</b></span>';
     faceDetailsList.appendChild(card);
@@ -253,6 +252,8 @@ socket.on('analyze_result', (data) => {
 
   const emotions = data.faces.map((f) => f.emotion).filter((e) => e && e !== 'N/A');
   topEmotion.textContent = emotions[0] || 'N/A';
+  const motions = Array.isArray(data.motions) ? data.motions : [];
+  if (motionLabel) motionLabel.textContent = motions[0] || 'N/A';
 
   const confidence = getTopConfidence(data.faces);
   confidenceValue.textContent = confidence === null ? 'N/A' : Math.round(confidence) + '%';
@@ -305,6 +306,7 @@ function stopCamera() {
   lastResultTs = 0;
   confidenceValue.textContent = 'N/A';
   qualityBadge.textContent = 'N/A';
+  if (motionLabel) motionLabel.textContent = 'N/A';
   cadenceText.textContent = '-';
   statusText.textContent = 'Status: stopped';
   if (faceDetailsPanel) faceDetailsPanel.style.display = 'none';

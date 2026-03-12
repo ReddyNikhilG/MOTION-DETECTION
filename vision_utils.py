@@ -133,7 +133,6 @@ class CentroidTracker:
 class PredictionSmoother:
     def __init__(self, window_size=5):
         self.window_size = window_size
-        self.age_history = {}
         self.emotion_history = {}
         self.confidence_history = {}
 
@@ -141,26 +140,17 @@ class PredictionSmoother:
         if not prediction:
             return None
 
-        age_q = self.age_history.setdefault(track_id, deque(maxlen=self.window_size))
         emo_q = self.emotion_history.setdefault(track_id, deque(maxlen=self.window_size))
         conf_q = self.confidence_history.setdefault(track_id, deque(maxlen=self.window_size))
 
-        age = prediction.get("age")
         emotion = prediction.get("dominant_emotion")
         confidence = prediction.get("confidence")
-
-        if isinstance(age, (int, float)):
-            age_q.append(float(age))
 
         if isinstance(emotion, str) and emotion:
             emo_q.append(emotion)
 
         if isinstance(confidence, (int, float)):
             conf_q.append(float(confidence))
-
-        smoothed_age = "N/A"
-        if age_q:
-            smoothed_age = int(round(sum(age_q) / len(age_q)))
 
         smoothed_emotion = "N/A"
         if emo_q:
@@ -171,14 +161,13 @@ class PredictionSmoother:
             smoothed_confidence = sum(conf_q) / len(conf_q)
 
         return {
-            "age": smoothed_age,
             "dominant_emotion": smoothed_emotion,
             "confidence": smoothed_confidence,
         }
 
     def cleanup(self, active_track_ids):
         active = set(active_track_ids)
-        for store in (self.age_history, self.emotion_history, self.confidence_history):
+        for store in (self.emotion_history, self.confidence_history):
             stale = [k for k in store.keys() if k not in active]
             for key in stale:
                 del store[key]

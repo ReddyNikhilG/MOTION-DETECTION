@@ -36,7 +36,7 @@ class AICamera(QWidget):
 
         super().__init__()
 
-        self.setWindowTitle("AI Age & Mood Detection System")
+        self.setWindowTitle("AI Mood & Motion Detection System")
 
         self.cap = cv2.VideoCapture(0)
         self.face_detector_mode = "MediaPipe" if mp is not None else "Haar"
@@ -47,10 +47,17 @@ class AICamera(QWidget):
                 model_selection=0,
                 min_detection_confidence=0.5,
             )
+        self.mp_pose = mp.solutions.pose.Pose(
+            static_image_mode=False,
+            model_complexity=1,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5,
+        ) if mp is not None else None
 
         self.last_faces = []
         self.last_predictions = []
         self.last_track_ids = []
+        self.last_motions = ["No person detected"]
         self.frame_count = 0
         self.analysis_interval = 12
         self.detection_interval = 2
@@ -138,7 +145,61 @@ class AICamera(QWidget):
         if not os.path.exists(self.csv_path):
             with open(self.csv_path, "w", newline="", encoding="utf-8") as fp:
                 writer = csv.writer(fp)
-                writer.writerow(["timestamp", "track_id", "age", "emotion", "confidence"])
+                writer.writerow(["timestamp", "track_id", "emotion", "confidence", "motions"])
+
+    def _classify_motion(self, frame):
+
+        if self.mp_pose is None:
+            if self.last_faces:
+                return ["Face detected (pose unavailable)"]
+            return ["No person detected (pose unavailable)"]
+
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        result = self.mp_pose.process(rgb)
+        if not result.pose_landmarks:
+            if self.last_faces:
+                return ["Person detected"]
+            return ["No person detected"]
+
+        lm = result.pose_landmarks.landmark
+        pose = mp.solutions.pose.PoseLandmark
+        nose = lm[pose.NOSE]
+        l_wrist = lm[pose.LEFT_WRIST]
+        r_wrist = lm[pose.RIGHT_WRIST]
+        l_shoulder = lm[pose.LEFT_SHOULDER]
+        r_shoulder = lm[pose.RIGHT_SHOULDER]
+        l_hip = lm[pose.LEFT_HIP]
+        r_hip = lm[pose.RIGHT_HIP]
+        l_knee = lm[pose.LEFT_KNEE]
+        r_knee = lm[pose.RIGHT_KNEE]
+
+        motions = []
+        if l_wrist.y < l_shoulder.y - 0.05 and r_wrist.y < r_shoulder.y - 0.05:
+            motions.append("Both Hands Raised")
+        elif l_wrist.y < l_shoulder.y - 0.05:
+            motions.append("Left Hand Raised")
+        elif r_wrist.y < r_shoulder.y - 0.05:
+            motions.append("Right Hand Raised")
+
+        torso_len = abs(((l_hip.y + r_hip.y) / 2) - ((l_shoulder.y + r_shoulder.y) / 2))
+        thigh_len = abs(((l_knee.y + r_knee.y) / 2) - ((l_hip.y + r_hip.y) / 2))
+        if torso_len > 0 and thigh_len / torso_len < 0.5:
+            motions.append("Sitting")
+        else:
+            motions.append("Standing")
+
+        shoulder_mid_x = (l_shoulder.x + r_shoulder.x) / 2
+        hip_mid_x = (l_hip.x + r_hip.x) / 2
+        lean = shoulder_mid_x - hip_mid_x
+        if lean > 0.06:
+            motions.append("Leaning Right")
+        elif lean < -0.06:
+            motions.append("Leaning Left")
+
+        if l_wrist.y < nose.y - 0.10 or r_wrist.y < nose.y - 0.10:
+            motions.append("Waving / Hand Above Head")
+
+        return motions if motions else ["Idle"]
 
     def apply_mode(self, mode):
 
@@ -300,19 +361,19 @@ class AICamera(QWidget):
             return
 
         self.last_logged_second[track_id] = second_key
-        age = prediction.get("age", "N/A")
         emotion = prediction.get("dominant_emotion", "N/A")
+        motions = ", ".join(self.last_motions)
 
         with open(self.csv_path, "a", newline="", encoding="utf-8") as fp:
             writer = csv.writer(fp)
-            writer.writerow([now.isoformat(), track_id, age, emotion, round(conf, 2)])
+            writer.writerow([now.isoformat(), track_id, emotion, round(conf, 2), motions])
 
         record = {
             "timestamp": now.isoformat(),
             "track_id": track_id,
-            "age": age,
             "emotion": emotion,
             "confidence": round(conf, 2),
+            "motions": self.last_motions,
         }
         with open(self.jsonl_path, "a", encoding="utf-8") as fp:
             fp.write(json.dumps(record) + "\n")
@@ -357,6 +418,8 @@ class AICamera(QWidget):
         if self.frame_count % self.analysis_interval == 0:
             self._submit_analysis(frame)
 
+        self.last_motions = self._classify_motion(frame)
+
         self.smoother.cleanup(self.last_track_ids)
 
         for index, (x, y, w, h) in enumerate(self.last_faces):
@@ -368,11 +431,10 @@ class AICamera(QWidget):
                 prediction = self.smoother.update(track_id, self.last_predictions[index])
 
             if prediction:
-                age = prediction.get("age", "N/A")
                 emotion = prediction.get("dominant_emotion", "N/A")
                 confidence = prediction.get("confidence")
 
-                label = f"ID:{track_id} Age:{age} Mood:{emotion}"
+                label = f"ID:{track_id} Mood:{emotion}"
                 if isinstance(confidence, (int, float)) and confidence >= self.confidence_threshold:
                     label += f" ({confidence:.0f}%)"
                     self._log_prediction(track_id, prediction)
@@ -387,6 +449,17 @@ class AICamera(QWidget):
                     (0, 255, 0),
                     2
                 )
+
+        for i, motion in enumerate(self.last_motions):
+            cv2.putText(
+                frame,
+                f"Motion: {motion}",
+                (10, 30 + i * 26),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.65,
+                (0, 200, 255),
+                2,
+            )
 
         status = "Analyzing" if self.analysis_running else "Idle"
         self.status_label.setText(
@@ -406,6 +479,8 @@ class AICamera(QWidget):
         self.stop_camera()
         if self.mp_face is not None:
             self.mp_face.close()
+        if self.mp_pose is not None:
+            self.mp_pose.close()
         self.executor.shutdown(wait=False, cancel_futures=True)
         super().closeEvent(event)
 

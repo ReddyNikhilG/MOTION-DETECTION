@@ -17,7 +17,7 @@ It now also includes:
 
 - Multi-face detection with green bounding boxes
 - Face tracking IDs across frames
-- Smoothed age and emotion labels to reduce flicker
+- Smoothed emotion labels and real-time motion labels
 - Confidence threshold filtering
 - Detector selection: Auto, MediaPipe, or Haar Cascade
 - Mode presets: Fast, Balanced, Quality
@@ -36,16 +36,24 @@ C:/Users/reddy/AppData/Local/Programs/Python/Python310/python.exe -m pip install
 2. Run the app:
 
 ```powershell
+streamlit run streamlit_app.py
+```
+
+3. Run the desktop app:
+
+```powershell
 C:/Users/reddy/AppData/Local/Programs/Python/Python310/python.exe motion.py
 ```
 
-3. Run the website:
+4. Run the Flask website:
 
 ```powershell
 C:/Users/reddy/AppData/Local/Programs/Python/Python310/python.exe web/app.py
 ```
 
 Then open http://127.0.0.1:5000
+
+For Streamlit, open the URL printed by Streamlit, typically http://127.0.0.1:8501
 
 ## UI Controls
 
@@ -76,6 +84,13 @@ Generated in `logs/`:
 - Aggregate analytics endpoint: `/api/analytics`
 - Workspace endpoint: `/api/workspace`
 - Monitoring endpoint: `/api/metrics`
+
+## Streamlit Deployment
+
+- Main Streamlit entrypoint: `streamlit_app.py`
+- Community Cloud app file: `streamlit_app.py`
+- Required Python version: `python-3.11`
+- Native packages for Linux hosts are listed in `packages.txt`
 
 ## Tests
 

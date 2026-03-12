@@ -24,7 +24,6 @@ class AIDetector:
 
         if not self.enabled:
             return {
-                "age": "N/A",
                 "dominant_emotion": "N/A",
                 "confidence": None,
             }
@@ -33,7 +32,7 @@ class AIDetector:
 
             result = DeepFace.analyze(
                 face_frame,
-                actions=["age", "emotion"],
+                actions=["emotion"],
                 enforce_detection=False
             )
 
@@ -41,7 +40,6 @@ class AIDetector:
             if not normalized:
                 return None
 
-            age = normalized.get("age")
             emotion = normalized.get("dominant_emotion", "N/A")
             emotion_scores = normalized.get("emotion", {})
 
@@ -49,11 +47,7 @@ class AIDetector:
             if isinstance(emotion_scores, dict) and emotion in emotion_scores:
                 confidence = float(emotion_scores[emotion])
 
-            if isinstance(age, (float, int)):
-                age = int(round(age))
-
             return {
-                "age": age,
                 "dominant_emotion": emotion,
                 "confidence": confidence
             }
