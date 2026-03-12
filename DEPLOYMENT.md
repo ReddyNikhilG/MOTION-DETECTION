@@ -34,6 +34,7 @@ streamlit run streamlit_app.py
 5. Deploy.
 
 Streamlit Community Cloud will install dependencies from `requirements.txt` and native Linux packages from `packages.txt`.
+On first run, the app automatically downloads the lightweight MediaPipe pose landmarker model into a local cache.
 
 If you leave the app on a newer Python version where TensorFlow wheels are unavailable, the deployment will still succeed, but emotion inference will be disabled and the app will run with face and motion detection only.
 
