@@ -1,13 +1,17 @@
+IMPORT_ERROR = None
+
 try:
     from deepface import DeepFace
-except Exception:
+except Exception as exc:
     DeepFace = None
+    IMPORT_ERROR = str(exc)
 
 
 class AIDetector:
 
     def __init__(self):
         self.enabled = DeepFace is not None
+        self.disabled_reason = IMPORT_ERROR
 
     @staticmethod
     def _normalize_result(result):

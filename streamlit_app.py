@@ -341,6 +341,13 @@ if st.sidebar.button("🗑️ Clear Detection Logs"):
 detector = get_detector()
 pose_detector = get_pose_detector()
 
+if not detector.enabled:
+    st.warning(
+        "Emotion inference is unavailable in this deployment. "
+        "The app will continue with face detection and motion detection only. "
+        f"Reason: {detector.disabled_reason or 'DeepFace dependencies are not installed for this Python version.'}"
+    )
+
 if not MP_POSE_AVAILABLE:
     st.warning("MediaPipe pose module is not available in this environment. Motion labels will be disabled.")
 

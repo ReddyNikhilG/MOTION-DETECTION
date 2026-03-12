@@ -30,10 +30,12 @@ streamlit run streamlit_app.py
 4. Use these settings:
 - Branch: `main` (or your deployment branch)
 - Main file path: `streamlit_app.py`
-- Python version: `3.11`
+- Python version: `3.12` or `3.11`
 5. Deploy.
 
 Streamlit Community Cloud will install dependencies from `requirements.txt` and native Linux packages from `packages.txt`.
+
+If you leave the app on a newer Python version where TensorFlow wheels are unavailable, the deployment will still succeed, but emotion inference will be disabled and the app will run with face and motion detection only.
 
 ## Streamlit Files Used By Deployment
 
@@ -88,6 +90,7 @@ Render will build from the Dockerfile and start Gunicorn automatically.
 ## Notes
 
 - Streamlit is the recommended deployment target for this repository if you do not need login, websocket streaming, or the separate Flask UI.
+- For full DeepFace emotion inference on Streamlit Community Cloud, select Python `3.12` or `3.11` in Advanced settings during deployment.
 - This app uses webcam capture in browser via `getUserMedia`.
 - Browser camera access requires HTTPS on public deployments.
 - TensorFlow may run on CPU if CUDA is unavailable.
