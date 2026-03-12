@@ -1,127 +1,302 @@
-# AI Face Monitor
+# 🎥 Motion Detection & Face Analytics Platform
 
-Real-time webcam face analytics app built with PyQt5, OpenCV, and DeepFace.
+Real-time **motion detection and face analytics system** built using **Python, OpenCV, DeepFace, Streamlit, and Flask**.
 
-Now includes a full website called FacePulse Live with browser webcam capture, API-based analysis, and analytics dashboard.
+The project provides multiple interfaces:
 
-It now also includes:
+- 🌐 **FacePulse Live Web Application**
+- 📊 **Streamlit Analytics Dashboard**
+- 🎥 **Real-time Motion & Face Detection Engine**
+- 🐳 **Docker-ready backend using Gunicorn**
 
-- User authentication (register/login/logout)
-- Per-user workspace settings persistence
-- Real-time WebSocket analysis stream
-- Database-backed analytics storage
-- Monitoring endpoint for request and latency counters
-- CI/CD workflows for testing and deploy hooks
+The system detects faces from webcam streams, performs emotion analysis, tracks motion activity, and stores analytics data for visualization.
 
-## Features
+---
 
-- Multi-face detection with green bounding boxes
-- Face tracking IDs across frames
-- Smoothed emotion labels and real-time motion labels
+# 🚀 Features
+
+### 🎥 Computer Vision
+- Real-time webcam motion detection
+- Multi-face detection with bounding boxes
+- Face tracking across frames
+- Emotion analysis using DeepFace
+- Motion state detection (moving / idle)
 - Confidence threshold filtering
-- Detector selection: Auto, MediaPipe, or Haar Cascade
-- Mode presets: Fast, Balanced, Quality
-- Local CSV and JSONL logging
-- Summary export button
-- Local-only privacy notice in UI
 
-## Setup
+### 🌐 Web Application (FacePulse Live)
 
-1. Install dependencies:
+- Browser webcam capture
+- Real-time analysis via API
+- Analytics dashboard
+- Database-backed analytics storage
+- Workspace settings per user
 
-```powershell
-C:/Users/reddy/AppData/Local/Programs/Python/Python310/python.exe -m pip install -r requirements.txt
+### 👤 Authentication
+
+- User registration
+- User login / logout
+- Session management
+- Workspace preference storage
+
+### ⚡ Real-Time Communication
+
+- WebSocket streaming for live analysis
+- API-based image processing
+- Live analytics updates
+
+### 📊 Monitoring & Analytics
+
+- Request counters
+- Latency monitoring
+- Aggregate analytics API
+- Exportable detection logs
+
+### ⚙️ CI/CD
+
+- Automated testing workflows
+- Deploy hooks
+- Health monitoring endpoint
+
+---
+
+# 🛠️ Tech Stack
+
+| Technology | Purpose |
+|-----------|--------|
+| Python | Core programming language |
+| OpenCV | Computer vision processing |
+| DeepFace | Face emotion analysis |
+| NumPy | Image processing operations |
+| Flask | Backend API & web server |
+| Streamlit | Interactive analytics dashboard |
+| WebSockets | Real-time streaming |
+| SQLite / SQL DB | Analytics storage |
+| Gunicorn | Production WSGI server |
+| Eventlet | Async workers |
+| Docker | Containerized deployment |
+
+---
+
+# 📂 Project Structure
+
+```
+MOTION-DETECTION
+│
+├── web/
+│   ├── app.py
+│   ├── routes/
+│   ├── templates/
+│   └── static/
+│
+├── streamlit_app.py
+├── motion.py
+├── wsgi.py
+├── tests/
+├── logs/
+├── requirements.txt
+├── Dockerfile
+└── README.md
 ```
 
-2. Run the app:
+---
 
-```powershell
+# ⚙️ Setup
+
+## 1️⃣ Clone the Repository
+
+```bash
+git clone https://github.com/ReddyNikhilG/MOTION-DETECTION.git
+cd MOTION-DETECTION
+```
+
+---
+
+## 2️⃣ Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# ▶️ Running the Applications
+
+## 1️⃣ Run Motion Detection Engine
+
+```bash
+python motion.py
+```
+
+This launches the **real-time webcam motion detection system**.
+
+---
+
+## 2️⃣ Run Streamlit Dashboard
+
+```bash
 streamlit run streamlit_app.py
 ```
 
-3. Run the desktop app:
+Then open:
 
-```powershell
-C:/Users/reddy/AppData/Local/Programs/Python/Python310/python.exe motion.py
+```
+http://localhost:8501
 ```
 
-4. Run the Flask website:
+This dashboard provides:
 
-```powershell
-C:/Users/reddy/AppData/Local/Programs/Python/Python310/python.exe web/app.py
+- Live analytics
+- Detection summaries
+- Visualization of logs
+
+---
+
+## 3️⃣ Run Flask Web Application
+
+```bash
+python web/app.py
 ```
 
-Then open http://127.0.0.1:5000
+Open:
 
-For Streamlit, open the URL printed by Streamlit, typically http://127.0.0.1:8501
-
-## UI Controls
-
-- Profile: performance preset
-- Detector: Auto, MediaPipe, or Haar
-- Analysis Every N Frames: DeepFace frequency
-- Max Faces: maximum tracked faces
-- Confidence %: minimum confidence to display and log
-- Camera Index: camera source index
-
-## Logs
-
-Generated in `logs/`:
-
-- `detections.csv`
-- `detections.jsonl`
-- `summary.json` (when Export Summary is clicked)
-- `web_detections.jsonl` (website live analyzer logs)
-
-## Website
-
-- Live page: `/`
-- Analytics page: `/analytics`
-- Login page: `/login`
-- Register page: `/register`
-- Health endpoint: `/api/health`
-- Analyze endpoint: `/api/analyze` (POST with base64 image)
-- Aggregate analytics endpoint: `/api/analytics`
-- Workspace endpoint: `/api/workspace`
-- Monitoring endpoint: `/api/metrics`
-
-## Streamlit Deployment
-
-- Main Streamlit entrypoint: `streamlit_app.py`
-- Community Cloud app file: `streamlit_app.py`
-- Required Python version: `python-3.11`
-- Native packages for Linux hosts are listed in `packages.txt`
-
-## Tests
-
-Run unit tests:
-
-```powershell
-C:/Users/reddy/AppData/Local/Programs/Python/Python310/python.exe -m unittest discover -s tests
+```
+http://127.0.0.1:5000
 ```
 
-## Packaging
+---
 
-Build a Windows executable:
+# 🌐 Website Routes
 
-```powershell
+| Route | Description |
+|------|-------------|
+| `/` | Live webcam analyzer |
+| `/analytics` | Analytics dashboard |
+| `/login` | User login |
+| `/register` | User registration |
+
+### API Endpoints
+
+| Endpoint | Description |
+|---------|-------------|
+| `/api/health` | Service health check |
+| `/api/analyze` | Analyze base64 image |
+| `/api/analytics` | Aggregated analytics |
+| `/api/workspace` | Workspace settings |
+| `/api/metrics` | Monitoring metrics |
+
+---
+
+# 🐳 Docker Deployment
+
+This repository includes a **production-ready Docker configuration**.
+
+## Build Docker Image
+
+```bash
+docker build -t face-monitor .
+```
+
+## Run Container
+
+```bash
+docker run -p 5000:5000 face-monitor
+```
+
+The app will be available at:
+
+```
+http://localhost:5000
+```
+
+The container runs using:
+
+```
+gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5000 wsgi:application
+```
+
+---
+
+# 📊 Logs
+
+Logs are generated inside the **logs/** directory.
+
+Files include:
+
+```
+logs/
+ ├── detections.csv
+ ├── detections.jsonl
+ ├── summary.json
+ └── web_detections.jsonl
+```
+
+These logs store:
+
+- face detection results
+- emotion predictions
+- motion state
+- timestamps
+
+---
+
+# 🧪 Tests
+
+Run unit tests using:
+
+```bash
+python -m unittest discover -s tests
+```
+
+---
+
+# 📦 Packaging
+
+To build a **Windows executable**:
+
+```
 build_exe.bat
 ```
 
-Run desktop website quickly using:
+To run the website quickly:
 
-```powershell
+```
 run_web.bat
 ```
 
-## Notes
+---
 
-- TensorFlow CUDA warnings can be ignored on non-NVIDIA systems.
-- First run may take longer due to model weight downloads.
+# ⚙️ Environment Variables
 
-## Environment Variables
+| Variable | Description |
+|--------|-------------|
+| `SECRET_KEY` | Flask session secret |
+| `DATABASE_URL` | Database connection string |
+| `PORT` | Web server port (default 5000) |
+| `FLASK_DEBUG` | Enable debug mode |
 
-- `SECRET_KEY`: Flask session secret (set in production)
-- `DATABASE_URL`: database DSN. Default is local SQLite file `webapp.db`
-- `PORT`: web port (default 5000)
-- `FLASK_DEBUG`: set `1` to enable debug mode
+---
+
+# ⚠️ Notes
+
+- TensorFlow CUDA warnings can be ignored on systems without NVIDIA GPUs.
+- The first run may take longer due to **DeepFace model downloads**.
+- Ensure webcam permissions are enabled.
+
+---
+
+# 👨‍💻 Author
+
+**Nikhil Reddy**
+
+GitHub  
+https://github.com/ReddyNikhilG
+
+---
+
+# ⭐ Support
+
+If you like this project:
+
+⭐ Star the repository  
+🍴 Fork the project  
+🚀 Contribute improvements
